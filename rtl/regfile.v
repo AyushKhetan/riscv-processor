@@ -21,7 +21,7 @@ module regfile(clk, reset, we, rs1, rs2, rd, wd, r1, r2);
         end
     endgenerate
 
-    bit32_32to1mux m1(r1, rs1, x);
-    bit32_32to1mux m2(r2, rs2, x);
+    assign r1 = x[rs1];
+    assign r2 = x[rs2];
 
 endmodule

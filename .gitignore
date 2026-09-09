@@ -1,4 +1,7 @@
-# Artefacts
+*.vcd
+*.vvp
+final_eval
+final_sim# Artefacts
 *.sim
 *.vcd
 

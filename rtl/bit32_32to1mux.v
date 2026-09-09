@@ -7,17 +7,6 @@ module bit32_32to1mux(reg_out, reg_num, reg_arr);
 
     output [31:0] reg_out;
 
-    genvar i, j;
-    generate
-        for(j = 0; j < 32; j= j + 1) begin: bit_loop
-            wire [31:0] regbit;
+    assign reg_out = reg_arr[reg_num];
 
-            for(i = 0; i < 32; i = i + 1) begin: reg_loop
-                assign regbit[i] = reg_arr[i][j];
-
-            end
-
-            mux32to1 m1(regbit, reg_num, reg_out[j]);
-        end
-    endgenerate
 endmodule

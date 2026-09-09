@@ -12,7 +12,7 @@ module fragment_r_type(clk, reset, inst, rd_val);
     wire [31:0] rdata1, rdata2, alu_out;
     wire [2:0] alu_sel;
 
-    reg_file RF (
+    regfile RF (
         .clk(clk),
         .reset(reset),
         .we(1'b1),

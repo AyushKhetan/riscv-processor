@@ -39,7 +39,7 @@ module capstone_cpu(clk, reset);
         .ImmSel(ImmSel)
     );
 
-    reg_file rf(
+    regfile rf(
         .clk(clk),
         .reset(reset),
         .we(RegWrite),
@@ -53,12 +53,12 @@ module capstone_cpu(clk, reset);
 
     assign aluB = ALUSrc ? immOut : rdata2;
     
-    // Using Lab 4 ALU
-    alu_lab04 alu(
-        .out(aluY),
+    rv32ialu alu(
         .a(rdata1),
         .b(aluB),
-        .sel(ALUOp)
+        .alu_ctrl(ALUOp),
+        .zero(),
+        .res(aluY)
     );
 
     BankedMEM DMEM(

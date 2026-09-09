@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module rv32ialu(a, b, alu_ctrl, zero, res);
+module rv32ialu_ext(a, b, alu_ctrl, zero, res);
 
     input [31:0] a, b;
     input [3:0] alu_ctrl;
