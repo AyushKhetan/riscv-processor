@@ -1,148 +1,146 @@
-# Single-Cycle RISC-V Processor in Verilog
+# Pipelined RISC-V Processor
 
-A modular implementation of a **single-cycle RISC-V processor** developed in Verilog HDL. The project progressively builds the processor from fundamental digital logic blocks to a complete single-cycle CPU, covering datapath design, control logic, ALU implementation, memory interfaces, and processor integration.
+A modular **32-bit RISC-V (RV32I subset) processor** implemented in Verilog HDL and developed from a single-cycle baseline into a **five-stage pipelined architecture**.
 
-The repository demonstrates practical RTL design, processor architecture concepts, and functional verification through simulation.
+The processor implements data forwarding, load-use hazard detection, pipeline stalls, branch handling, control-hazard flushing, and cycle-level performance counters.
 
----
+## Architecture
 
-# Features
+The processor uses the classic five-stage pipeline:
 
-- RV32I single-cycle processor architecture
-- Modular RTL implementation
+**IF → ID → EX → MEM → WB**
+
+The design is organized into modular datapath, control, pipeline-register, hazard-handling, and memory components.
+
+### Core Components
+
+- Program Counter and PC increment logic
+- Instruction memory
+- Data memory
 - Register file
-- Arithmetic Logic Unit (ALU)
-- Immediate Generator
-- Control Unit
-- ALU Control
-- Program Counter
-- Instruction Memory
-- Data Memory
-- Functional simulation using Verilog testbenches
-
----
-
-# Processor Organization
-
-The processor consists of reusable RTL modules located in the `rtl/` directory.
-
-Major modules include:
-
-- Program Counter
-- Register File
-- Control Unit
-- ALU Control
-- Immediate Generator
-- Arithmetic Logic Unit
-- Instruction Memory
-- Data Memory
-- CPU Top Module
-
----
-
-# Repository Structure
-
-```text
-single-cycle-riscv-cpu/
-
-├── rtl/
-│   Reusable RTL modules
-│
-├── labs/
-│   Progressive implementation stages
-│
-├── results/
-│   Simulation outputs
-│
-├── scripts/
-│   Utility scripts
-│
-├── docs/
-│   Architecture diagrams and screenshots
-│
-├── README.md
-├── LICENSE
-└── .gitignore
-```
-
----
-
-# Progressive Implementation
-
-The processor was developed through successive implementation stages.
-
-| Stage | Focus |
-|------|------------------------------|
-| Lab 1 | Basic combinational logic |
-| Lab 2 | Sequential circuits and FSMs |
-| Lab 3 | Instruction encoding |
-| Lab 4 | Datapath building blocks |
-| Lab 5 | Control logic |
-| Lab 6 | Processor integration |
-| Lab 7 | Memory subsystem |
-| Lab 8 | Complete single-cycle processor |
-
----
-
-# Directory Overview
-
-## rtl/
-
-Contains reusable RTL modules implementing the processor datapath and control logic.
-
-Examples include:
-
-- ControlUnit
-- Register File
+- Immediate generator
 - ALU
-- Immediate Generator
-- Program Counter
-- Memory Modules
-
----
-
-## labs/
-
-Contains the implementation stages, corresponding testbenches, and manuals documenting the evolution of the processor.
-
----
-
-## results/
-
-Stores generated simulation outputs.
-
----
-
-## scripts/
-
-Utility scripts for compiling and running simulations.
-
----
-
-# Future Improvements
-
-Possible extensions include:
-
-- Five-stage pipelined implementation
-- Hazard detection
+- Main control unit
+- IF/ID pipeline register
+- ID/EX pipeline register
+- EX/MEM pipeline register
+- MEM/WB pipeline register
 - Forwarding unit
-- Branch prediction
-- Cache hierarchy
-- CSR support
-- Performance benchmarking
+- Load-use hazard detection unit
+- Branch control and pipeline flushing
+- Performance counters
 
----
+## Supported Instruction Subset
 
-# Tools
+| Type | Instructions |
+|------|--------------|
+| R-type | `ADD`, `SUB`, `AND`, `OR`, `XOR`, `SLL`, `SRL`, `SLT` |
+| I-type | `ADDI`, `LW` |
+| S-type | `SW` |
+| B-type | `BEQ`, `BNE` |
 
-- Verilog HDL
-- Icarus Verilog
-- GTKWave
-- Git
-- VS Code
+This project implements a **subset of RV32I** and does not claim full RISC-V ISA compliance.
 
----
+## Pipeline Hazard Handling
 
-# License
+### Data Hazards
 
-Released under the MIT License.
+The processor implements several forwarding paths to reduce unnecessary pipeline stalls:
+
+- **EX/MEM → EX forwarding**
+- **MEM/WB → EX forwarding**
+- **WB → ID register-file bypass**
+- **ALU → store-data forwarding**
+- **Forwarding of branch operands into the ID stage**
+
+These mechanisms allow dependent instructions to execute without waiting for the producing instruction to reach the write-back stage whenever the required value is already available.
+
+### Load-Use Hazards
+
+A load-use dependency cannot be resolved through normal EX-stage forwarding because the loaded data becomes available only after the memory stage.
+
+The hazard detection unit therefore:
+
+1. Holds the PC
+2. Holds the IF/ID pipeline register
+3. Inserts a bubble into the ID/EX pipeline register
+
+This introduces a one-cycle stall for the dependent instruction.
+
+### Control Hazards
+
+Branches are resolved in the **ID stage**.
+
+For a taken branch:
+
+- The PC is redirected to the branch target.
+- The younger wrong-path instruction in IF is flushed.
+- A one-cycle taken-branch penalty is incurred.
+
+Both `BEQ` and `BNE` are supported.
+
+## Verification
+
+The design was verified using directed simulation tests covering:
+
+- Basic arithmetic and ALU operations
+- EX/MEM forwarding
+- Dual-source forwarding
+- Chained RAW dependencies
+- Load instructions
+- Load-use hazards and stalls
+- ALU-to-store forwarding
+- ALU-to-branch forwarding
+- WB-to-branch forwarding
+- Load-to-branch hazard handling
+- Taken `BEQ`
+- Not-taken `BEQ`
+- Taken `BNE`
+- Not-taken `BNE`
+- Branch target execution
+- Pipeline flushing
+- Benchmark execution
+
+All directed functional tests and benchmark checks passed.
+
+## Performance Characterization
+
+The processor includes hardware performance counters for:
+
+- Total cycles
+- Instruction events
+- Load-use stalls
+- Branch instructions
+- Taken branches
+- Pipeline flushes
+
+Final benchmark results:
+
+| Metric | Result |
+|--------|-------:|
+| Cycles | 123 |
+| Instructions | 95 |
+| CPI | 1.29 |
+| Load-use stalls | 11 |
+| Branches | 10 |
+| Taken branches | 9 |
+| Pipeline flushes | 9 |
+
+The measured CPI includes the overhead introduced by pipeline stalls and taken-branch penalties.
+
+## Simulation
+
+The project was developed and simulated using **Icarus Verilog** with the OSS CAD Suite.
+
+Compile the final pipeline and testbench with:
+
+```bash
+iverilog -g2012 -o final_eval \
+capstone_cpu_pipe.v \
+if_id.v id_ex.v ex_mem.v mem_wb.v \
+hazard_unit.v forwarding_unit.v \
+ControlUnit.v ImmGen.v rv32ialu.v \
+aluaddsub.v alulogic.v alushift.v alucomp.v \
+BankedMEM.v bank8.v regfile.v reg32.v \
+decoder5to32.v PCInc.v perf_counter.v \
+tb_capstone_cpu_pipe.v
