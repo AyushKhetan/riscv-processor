@@ -198,7 +198,6 @@ The project focuses on practical RTL and computer architecture concepts:
 
 - Verilog HDL
 - Icarus Verilog
-- OSS CAD Suite
 - GTKWave
 - Git / GitHub
 
