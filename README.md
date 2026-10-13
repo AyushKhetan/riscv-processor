@@ -1,8 +1,10 @@
-# Pipelined RISC-V Processor
+# Pipelined RISC-V Processor with JTAG-Based Design-for-Testability
 
-A modular **32-bit RISC-V (RV32I subset) processor** implemented in Verilog HDL and developed from a single-cycle baseline into a **five-stage pipelined architecture**.
+A modular **32-bit RISC-V-subset processor** implemented in Verilog, evolving from a single-cycle baseline to a five-stage pipeline with forwarding, hazard detection, pipeline stalls, branch flushing, and performance counters.
 
-The processor implements data forwarding, load-use hazard detection, pipeline stalls, branch handling, control-hazard flushing, and cycle-level performance counters.
+The project extends the processor with a **scan-based design-for-testability (DFT) architecture** using scan-enabled pipeline registers and a JTAG test-access interface. The DFT implementation includes a TAP controller, instruction register, IDCODE and BYPASS data registers, and a serial scan path intended to expose internal pipeline state for testing.
+
+The repository separates the original processor implementation from the DFT extension, with dedicated RTL modules and testbenches for processor functionality, scan operations, and JTAG components.
 
 ## Architecture
 
