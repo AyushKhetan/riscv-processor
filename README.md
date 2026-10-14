@@ -1,24 +1,10 @@
 # Pipelined RISC-V Processor with JTAG-Based Design-for-Testability
 
-A modular **32-bit RISC-V-subset processor** implemented in Verilog, evolving from a single-cycle baseline to a five-stage pipeline with forwarding, hazard detection, pipeline stalls, branch flushing, and performance counters.
+A modular 32-bit RISC-V-subset processor implemented in Verilog, evolving from a single-cycle baseline to a five-stage pipeline with forwarding, hazard detection, pipeline stalls, branch flushing, and performance counters.
 
-The project extends the processor with a **scan-based design-for-testability (DFT) architecture** using scan-enabled pipeline registers and a JTAG test-access interface. The DFT implementation includes a TAP controller, instruction register, IDCODE and BYPASS data registers, and a serial scan path intended to expose internal pipeline state for testing.
+The project extends the processor with a scan-based design-for-testability (DFT) architecture using scan-enabled pipeline registers and a JTAG test-access interface. The DFT implementation includes a TAP controller, instruction register, IDCODE and BYPASS data registers, and a serial scan path for observing internal pipeline state.
 
-The repository contains the original processor implementation alongside the DFT extension, with dedicated RTL modules and testbenches for processor functionality, scan operations, and JTAG components.
-
-## Table of Contents
-
-- [Architecture](#architecture)
-- [Supported Instruction Subset](#supported-instruction-subset)
-- [Pipeline Hazard Handling](#pipeline-hazard-handling)
-- [Verification](#verification)
-- [Performance Characterization](#performance-characterization)
-- [JTAG-Based Design-for-Testability](#jtag-based-design-for-testability)
-- [Simulation](#simulation)
-- [Repository Structure](#repository-structure)
-- [Design Focus](#design-focus)
-- [Tools](#tools)
-- [Project Status](#project-status)
+This is an educational implementation of an RV32I subset. It does not claim full RISC-V ISA compliance or full IEEE 1149.1 compliance.
 
 ## Architecture
 
@@ -26,23 +12,12 @@ The processor uses the classic five-stage pipeline:
 
 **IF → ID → EX → MEM → WB**
 
-The design is organized into modular datapath, control, pipeline-register, hazard-handling, and memory components.
+Core components include:
 
-### Core Components
-
-- Program counter and PC increment logic
-- Instruction memory
-- Data memory
-- Register file
-- Immediate generator
-- Arithmetic logic unit (ALU)
-- Main control unit
-- IF/ID pipeline register
-- ID/EX pipeline register
-- EX/MEM pipeline register
-- MEM/WB pipeline register
-- Forwarding unit
-- Load-use hazard detection unit
+- Program counter and instruction/data memories
+- Register file, immediate generator, ALU, and control unit
+- IF/ID, ID/EX, EX/MEM, and MEM/WB pipeline registers
+- Forwarding and load-use hazard detection units
 - Branch control and pipeline flushing
 - Performance counters
 
@@ -55,80 +30,33 @@ The design is organized into modular datapath, control, pipeline-register, hazar
 | S-type | `SW` |
 | B-type | `BEQ`, `BNE` |
 
-This project implements a **subset of RV32I** and does not claim full RISC-V ISA compliance.
-
 ## Pipeline Hazard Handling
 
-### Data Hazards
+### Data hazards
 
-The processor implements several forwarding paths to reduce unnecessary pipeline stalls:
+The processor implements:
 
-- **EX/MEM → EX forwarding**
-- **MEM/WB → EX forwarding**
-- **WB → ID register-file bypass**
-- **ALU → store-data forwarding**
-- **Forwarding of branch operands into the ID stage**
+- EX/MEM → EX forwarding
+- MEM/WB → EX forwarding
+- WB → ID register-file bypass
+- ALU → store-data forwarding
+- Branch operand forwarding into the ID stage
 
-These mechanisms allow dependent instructions to execute without waiting for the producing instruction to reach the write-back stage whenever the required value is already available.
+### Load-use hazards
 
-### Load-Use Hazards
+When a dependent instruction requires load data that is not yet available, the hazard detection unit holds the PC and IF/ID register and inserts a bubble into ID/EX. This introduces a one-cycle stall.
 
-A load-use dependency cannot be resolved through normal EX-stage forwarding because the loaded data becomes available only after the memory stage.
+### Control hazards
 
-The hazard detection unit therefore:
-
-1. Holds the PC.
-2. Holds the IF/ID pipeline register.
-3. Inserts a bubble into the ID/EX pipeline register.
-
-This introduces a one-cycle stall for the dependent instruction.
-
-### Control Hazards
-
-Branches are resolved in the **ID stage**.
-
-For a taken branch:
-
-- The PC is redirected to the branch target.
-- The younger wrong-path instruction in IF is flushed.
-- A one-cycle taken-branch penalty is incurred.
+Branches are resolved in the ID stage. A taken branch redirects the PC to the branch target and flushes the younger wrong-path instruction in IF, incurring a one-cycle taken-branch penalty.
 
 Both `BEQ` and `BNE` are supported.
 
-## Verification
-
-The original processor was verified using directed simulation tests covering:
-
-- Basic arithmetic and ALU operations
-- EX/MEM forwarding
-- Dual-source forwarding
-- Chained RAW dependencies
-- Load instructions
-- Load-use hazards and stalls
-- ALU-to-store forwarding
-- ALU-to-branch forwarding
-- WB-to-branch forwarding
-- Load-to-branch hazard handling
-- Taken and not-taken `BEQ`
-- Taken and not-taken `BNE`
-- Branch target execution
-- Pipeline flushing
-- Benchmark execution
-
-The recorded baseline results indicate that the directed functional tests and benchmark checks passed.
-
 ## Performance Characterization
 
-The processor includes hardware performance counters for:
+The baseline processor includes counters for total cycles, instruction events, load-use stalls, branches, taken branches, and pipeline flushes.
 
-- Total cycles
-- Instruction events
-- Load-use stalls
-- Branch instructions
-- Taken branches
-- Pipeline flushes
-
-### Recorded Benchmark Results
+### Recorded benchmark results
 
 | Metric | Result |
 |---|---:|
@@ -140,19 +68,15 @@ The processor includes hardware performance counters for:
 | Taken branches | 9 |
 | Pipeline flushes | 9 |
 
-The measured CPI includes the overhead introduced by pipeline stalls and taken-branch penalties.
+These results are from the original processor benchmark and are not measurements of the JTAG/DFT extension.
 
-These results refer to the original processor benchmark and should not be interpreted as measurements of the JTAG/DFT extension.
+## JTAG-Based Scan DFT
 
-## JTAG-Based Design-for-Testability
+The DFT extension connects four scan-enabled pipeline registers to a JTAG-style Test Access Port (TAP).
 
-The DFT extension adds serial access to internal pipeline state through scan-enabled pipeline registers and a JTAG-style test-access interface.
+### Scan-chain composition
 
-### Scan Architecture
-
-The scan path spans four pipeline registers:
-
-| Pipeline register | Scan width |
+| Pipeline register | Width |
 |---|---:|
 | IF/ID | 64 bits |
 | ID/EX | 151 bits |
@@ -160,103 +84,96 @@ The scan path spans four pipeline registers:
 | MEM/WB | 103 bits |
 | **Total** | **423 bits** |
 
-The four registers form a **423-bit serial scan chain** intended to support shifting internal pipeline state into and out of the processor for test and observability experiments.
+The serial scan path is:
 
-The program counter is not included in this scan-chain total.
+`TDI → IF/ID → ID/EX → EX/MEM → MEM/WB → TDO`
 
-### JTAG Components
+The program counter is not included in the 423-bit scan-chain total.
 
-The DFT implementation includes:
+### JTAG instructions
 
-- **TAP controller:** A 16-state finite-state machine for JTAG state transitions.
-- **Instruction register (IR):** Selects the active data register.
-- **IDCODE register:** Provides the configured 32-bit identification value `0x12345678`.
-- **BYPASS register:** Provides a one-bit serial bypass path.
-- **Data-register multiplexer:** Selects the data path associated with the active instruction.
-- **CPU scan interface:** Connects the selected JTAG data path to the processor scan chain.
-- **Scan-enabled pipeline registers:** Provide serial access to the four pipeline-register stages.
+The current implementation uses these project-specific instruction encodings:
 
-### JTAG Instruction Encodings
-
-| Instruction | Encoding | Purpose |
+| Instruction | Encoding | Function |
 |---|---|---|
-| IDCODE | `0001` | Selects the identification register |
+| IDCODE | `0001` | Selects the 32-bit identification register |
 | CPU_SCAN | `0010` | Selects the processor scan path |
-| BYPASS | `1111` | Selects the one-bit bypass register |
+| BYPASS | `1111` | Selects a one-bit bypass register |
 
-These are the encodings used by the current implementation; this project does not claim full IEEE 1149.1 compliance.
+The configured IDCODE value is `32'h12345678`.
 
-### DFT Verification Plan
+### DFT components
 
-The repository includes dedicated testbenches for the TAP controller, instruction register, IDCODE register, BYPASS register, standalone scan chain, and JTAG-to-CPU integration.
+The `dft/` directory contains:
 
-The following checks are important for completing validation of the integrated design:
+- TAP controller and instruction register
+- IDCODE and BYPASS registers
+- Data-register selection logic
+- CPU scan interface and integration wrapper
+- Scan-enabled pipeline-register implementations
+- JTAG and scan testbenches
+- Targeted fault-injection testbench
 
-1. Compile the complete DFT source set without errors.
-2. Verify TAP state transitions and instruction selection.
-3. Verify IDCODE and BYPASS data-register operation.
-4. Perform an end-to-end 423-bit CPU scan-in/scan-out round trip using a nontrivial test pattern.
-5. Confirm that scan operation does not unintentionally modify processor state or cause memory writes.
-6. Re-run the baseline processor regression to ensure the extension has not broken normal operation.
-7. Implement controlled fault injection and document detection results before making fault-coverage claims.
+## Verification
 
-The existence of a testbench does not by itself establish that the corresponding test passes. End-to-end CPU scan verification and fault-injection evaluation remain explicit validation priorities until confirmed by reproducible simulation results.
+The baseline processor regression and the DFT/JTAG regression have been run successfully using Icarus Verilog in the OSS CAD Suite environment.
 
-## Simulation
+The recorded checks include:
 
-The project uses **Icarus Verilog** for RTL simulation and **GTKWave** for waveform inspection.
+- Directed processor tests covering arithmetic, forwarding, load-use hazards, branches, stalls, and flushing
+- Baseline benchmark completion and performance-counter checks
+- TAP state-machine transitions
+- Instruction-register operation
+- IDCODE shifting and update
+- BYPASS register operation
+- A 423-bit scan-pattern round trip
+- CPU scan-wrapper operation
+- End-to-end JTAG-to-CPU integration, including IDCODE, CPU_SCAN selection, and scan-pattern recovery
+- Targeted fault-injection observability
 
-### Baseline Processor
+### Fault-injection experiment
 
-Compile the original five-stage processor and its testbench from the repository root:
+A controlled stuck-at-0 fault was injected on the scan-visible `MEM/WB.regWrite` state bit. The fault-free value was observed at TDO, and the injected fault altered the observed scan-out value as expected.
+
+This demonstrates observability for that specific injected fault. It is not a measurement of overall processor fault coverage.
+
+## Running the Tests
+
+Requirements: Icarus Verilog with SystemVerilog support (`iverilog -g2012`) and `vvp`. Run the commands from Bash, such as the OSS CAD Suite terminal or WSL.
+
+### Baseline processor regression
+
+From the repository root:
 
 ```bash
-iverilog -g2012 -o final_eval \
-capstone_cpu_pipe.v \
-if_id.v id_ex.v ex_mem.v mem_wb.v \
-hazard_unit.v forwarding_unit.v \
-ControlUnit.v ImmGen.v rv32ialu.v \
-aluaddsub.v alulogic.v alushift.v alucomp.v \
-BankedMEM.v bank8.v regfile.v reg32.v \
-decoder5to32.v PCInc.v perf_counter.v \
-tb_capstone_cpu_pipe.v
+bash scripts/run_baseline_test.sh
 ```
 
-Run the simulation:
+### DFT/JTAG regression
+
+From the repository root:
 
 ```bash
-vvp final_eval
+bash scripts/run_dft_tests.sh
 ```
 
-Use the actual source locations if the files reside in a subdirectory such as `rtl/`.
+The regression scripts compile each testbench with an explicitly selected top module. Simulation executables and generated waveforms are placed in temporary build directories and removed when the scripts finish.
 
-### DFT and JTAG Tests
-
-The DFT extension has separate RTL modules and testbenches. Compile each testbench with its required dependencies and run it with `vvp`.
-
-The exact source lists and commands should be documented alongside the testbenches once the current integration source has been repaired and the commands have been validated.
-
-A VCD waveform can be generated by the testbench and inspected using GTKWave.
-
-## Repository Structure
-
-The repository contains the original processor RTL and a separate DFT extension. The following is the intended organization; file paths should be adjusted to match the checked-in layout.
+## Repository Layout
 
 ```text
 riscv-processor/
 ├── README.md
 ├── rtl/
-│   ├── capstone_cpu.v
 │   ├── capstone_cpu_pipe.v
 │   ├── if_id.v
 │   ├── id_ex.v
 │   ├── ex_mem.v
 │   ├── mem_wb.v
-│   ├── forwarding_unit.v
 │   ├── hazard_unit.v
-│   ├── perf_counter.v
+│   ├── forwarding_unit.v
 │   ├── ControlUnit.v
-│   ├── ImmGen.v
+│   ├── immgen.v
 │   ├── rv32ialu.v
 │   ├── aluaddsub.v
 │   ├── alulogic.v
@@ -268,65 +185,55 @@ riscv-processor/
 │   ├── reg32.v
 │   ├── decoder5to32.v
 │   ├── PCInc.v
+│   ├── perf_counter.v
 │   └── tb_capstone_cpu_pipe.v
-└── dft/
-    ├── rtl/
-    │   ├── capstone_cpu_pipe_jtag.sv
-    │   ├── jtag_cpu.sv
-    │   ├── jtag_tap.sv
-    │   ├── jtag_ir.sv
-    │   ├── jtag_idcode.sv
-    │   ├── jtag_bypass.sv
-    │   ├── jtag_dr_mux.sv
-    │   ├── jtag_cpu_scan.sv
-    │   ├── if_id_dft.sv
-    │   ├── id_ex_dft.sv
-    │   ├── ex_mem_dft.sv
-    │   └── mem_wb_dft.sv
-    └── tb/
-        ├── tb_jtag_tap.sv
-        ├── tb_jtag_ir.sv
-        ├── tb_jtag_idcode.sv
-        ├── tb_jtag_bypass.sv
-        ├── tb_scan_chain.sv
-        └── tb_jtag_cpu.sv
+├── dft/
+│   ├── capstone_cpu_pipe_jtag.sv
+│   ├── jtag_cpu.sv
+│   ├── jtag_tap.sv
+│   ├── jtag_ir.sv
+│   ├── jtag_idcode.sv
+│   ├── jtag_bypass.sv
+│   ├── jtag_dr_mux.sv
+│   ├── jtag_cpu_scan.sv
+│   ├── if_id_dft.sv
+│   ├── id_ex_dft.sv
+│   ├── ex_mem_dft.sv
+│   ├── mem_wb_dft.sv
+│   ├── tb_jtag_tap.sv
+│   ├── tb_jtag_ir.sv
+│   ├── tb_jtag_idcode.sv
+│   ├── tb_jtag_bypass.sv
+│   ├── tb_scan.sv
+│   ├── tb_jtag_cpu_scan.sv
+│   ├── tb_jtag_cpu.sv
+│   └── tb_fault_injection.sv
+└── scripts/
+    ├── run_baseline_test.sh
+    └── run_dft_tests.sh
 ```
 
 ## Design Focus
 
-The project focuses on practical RTL design, processor microarchitecture, and design-for-testability:
+The project demonstrates practical RTL design, processor microarchitecture, and DFT concepts:
 
-- Datapath and control design
-- Five-stage pipelining
-- Pipeline registers
-- Data forwarding
-- RAW hazard handling
-- Load-use hazard detection
-- Pipeline stalls
-- Control hazards and branch resolution
-- Pipeline flushing
+- Five-stage pipelining and datapath/control design
+- Data forwarding and RAW hazard handling
+- Load-use stall insertion
+- Branch resolution and pipeline flushing
 - Cycle-level performance characterization
-- Scan-enabled pipeline state
-- JTAG TAP and data-register architecture
-- RTL simulation and self-checking testbenches
-- Internal-state observability and DFT validation
+- Scan-enabled pipeline state and JTAG data-register architecture
+- Self-checking RTL simulation and fault-observability experiments
 
 ## Tools
 
-- Verilog HDL
-- SystemVerilog
-- Icarus Verilog
+- Verilog HDL and SystemVerilog
+- Icarus Verilog and `vvp`
 - GTKWave
 - Git and GitHub
 
 ## Project Status
 
-### Original Processor
+**Original processor:** Directed functional verification and baseline benchmark checks passed.
 
-**Completed:** A functional five-stage RV32I-subset processor with forwarding, load-use hazard handling, branch flushing, directed verification, and performance counters.
-
-### JTAG/DFT Extension
-
-**Under integration and validation:** The scan-enabled pipeline registers, JTAG components, and testbenches have been developed. End-to-end CPU scan operation, regression testing of the integrated design, and fault-injection evaluation must be confirmed before the complete DFT extension can be considered verified.
-
-The intended outcome is an integrated processor with JTAG-selected scan access to internal pipeline state, supported by reproducible simulation tests and documented DFT evaluation results.
+**JTAG/DFT extension:** The TAP, instruction/data registers, scan chain, integrated JTAG-to-CPU path, baseline regression, and targeted fault-injection experiment passed the recorded simulations. These results establish the tested functionality but do not establish full ISA compliance, complete IEEE 1149.1 compliance, or comprehensive fault coverage.

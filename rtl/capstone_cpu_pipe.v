@@ -1,17 +1,29 @@
-module capstone_cpu_pipe(clk, reset);
-    input clk, reset;
+module capstone_cpu_pipe(
+    input clk,
+    input reset,
+
+    output [31:0] imem_addr,
+    input [31:0] imem_rdata,
+
+    output [31:0] dmem_addr,
+    output [31:0] dmem_wdata,
+    output        dmem_read,
+    output        dmem_write,
+    input [31:0]  dmem_rdata
+    );
+
 
     wire [31:0] next_pc;
     wire [31:0] instr1;
     wire [31:0] instr2;
-    
+
     wire [31:0] writeBackData;
     reg [31:0] aluA, alub;
     wire [31:0] aluB;
 
-  
-    wire [31:0] PC1;           
-    wire if_id_write, PCWrite, taken_id;                     
+
+    wire [31:0] PC1;
+    wire if_id_write, PCWrite, taken_id;
     wire WBSel1, RegWrite1, ALUSrc1, MemWrite1, MemRead1; wire [2:0] ALUOp1;  wire [1:0] ImmSel; wire [31:0] immOut1, r1_1, r2_1, PC2; //Decode
     wire br_1, brne_1;
     reg [31:0] r1_id, r2_id;
@@ -20,7 +32,7 @@ module capstone_cpu_pipe(clk, reset);
     wire WBSel2, RegWrite2, ALUSrc2, MemWrite2, MemRead2; wire [2:0] ALUOp2;  wire [31:0] immOut2, r1_2, r2_2, aluY_1, PC3;  wire [4:0] rd1; wire [1:0] ForwardA, ForwardB; //Execute
     wire WBSel3, RegWrite3, MemWrite3, MemRead3; wire [31:0] r2_3, aluY_2, PC4, memReadData1; wire [4:0] rd2;                                     //Mem
     wire WBSel4, RegWrite4; wire [31:0] aluY_3, memReadData2, PC5;  wire [4:0] rd3;                                                              //WB
-    
+
     wire [31:0] pc_plus4;
 
 
@@ -33,7 +45,7 @@ module capstone_cpu_pipe(clk, reset);
     wire [31:0] flush_count;
     wire [31:0] branch_count;
     wire [31:0] branch_taken_count;
-    
+
 
     BankedMEM IMEM(
         .clk(clk),
@@ -147,7 +159,7 @@ module capstone_cpu_pipe(clk, reset);
         .if_id_write   (if_id_write   ),
         .id_ex_flush   (id_ex_flush   )
     );
-    
+
 
     id_ex s2(
         .clk         (clk         ),
@@ -181,7 +193,7 @@ module capstone_cpu_pipe(clk, reset);
         .MemRead     (MemRead2     ),
         .ALUOp       (ALUOp2       )
     );
-    
+
     // 00 - ID_Ex, 01 - Mem_Wb, 10 - Ex_Mem
     forwarding_unit fu(
         .id_ex_r1       (rs1_2      ),
@@ -210,7 +222,7 @@ module capstone_cpu_pipe(clk, reset);
             2'b10: alub = aluY_2;
         endcase
     end
-    
+
     rv32ialu alu(
         .a(aluA),
         .b(aluB),
@@ -270,7 +282,7 @@ module capstone_cpu_pipe(clk, reset);
         .WBSel       (WBSel4    ),
         .regWrite    (RegWrite4    )
     );
-    
+
     assign writeBackData = WBSel4 ? memReadData2 : aluY_3;
 
     PCInc pc_incrementer(
@@ -309,6 +321,6 @@ module capstone_cpu_pipe(clk, reset);
         .branch_count       (branch_count       ),
         .branch_taken_count (branch_taken_count )
     );
-    
+
 
 endmodule
